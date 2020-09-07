@@ -37,6 +37,7 @@ class CT_lung_preprocess:
         self.mask_dir=''.join([master_main_output,'/Test_preprocess/masks/'])
         self.spacing_dir=''.join([master_main_output,'/Test_preprocess/spacing/'])
         self.preprocess_dir=''.join([master_main_output,'/Test_preprocess/rescal_final/'])
+        print("CT_lung_process_class_intiated sucessfull")
    
     def  preprocess_all(self):
    
