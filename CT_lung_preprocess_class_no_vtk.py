@@ -39,7 +39,7 @@ class CT_lung_preprocess:
         self.preprocess_dir=''.join([master_main_output,'/Test_preprocess/rescal_final/'])
         print("CT_lung_process_class_intiated sucessfull")
    
-    def  preprocess_all(self):
+    def  preprocess_all(self,single=False,sel=0):
    
         #creating saving/ output directories 
         os.chdir('/')
@@ -54,8 +54,14 @@ class CT_lung_preprocess:
         os.chdir('/')
         os.chdir(self.test_input_dir)
         names=os.listdir()
-        for name in names:   
-            print("Intiating CT extracting from ",name)
+        if not single:
+            for name in names:   
+                print("Intiating CT extracting from ",name)
+                self.save_mask(name)
+                print("CT extracted from ",name," sucessfull ")
+        else:
+            name=names[sel]
+            print("Single Intiating CT extracting from ",name)
             self.save_mask(name)
             print("CT extracted from ",name," sucessfull ")
             
