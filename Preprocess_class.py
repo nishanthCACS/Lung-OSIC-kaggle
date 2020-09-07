@@ -10,10 +10,10 @@ import numpy as np
 import pickle
 from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt  
-
+import gc
 class preprocess:
     
-    def __init__(self,loading_CNN_dir,loading_mask_dir,loading_preprocess,load_spacing_directory,saving_dir_main,sving_image_direct='optional'):
+    def __init__(self,name,loading_CNN_dir,loading_mask_dir,loading_preprocess,load_spacing_directory,saving_dir_main,sving_image_direct='optional'):
 
         self.loading_CNN_dir = loading_CNN_dir
         self.loading_mask_dir = loading_mask_dir
@@ -21,39 +21,37 @@ class preprocess:
         self.load_spacing_directory=load_spacing_directory
 
         self.sving_image_direct=sving_image_direct
-
+        self.name=name
         self.saving_dir=''.join([saving_dir_main,'/Test_preprocess/extract_rmd_check/'])
-        print("model load intiated")
-        os.chdir('/')
-        os.chdir(self.loading_CNN_dir)
-        self.encoder_model = load_model('Feature_extractor_conv_vin_1.h5')
-        print("Model load suceeded")
-                   
-        os.chdir('/')
-        os.chdir(self.loading_preprocess)
-        print("Preprocess intiated sucessll")       
-    
+        print("Preprocess intiated sucessll")
     def feature_extract_all(self):
         '''
         Loading the models and extract the important features
         '''
-
+        print("model load intiated")
+        os.chdir('/')
+        os.chdir(self.loading_CNN_dir)
+        encoder_model = load_model('Feature_extractor_conv_vin_1.h5')
+        print("Model load suceeded")
         os.chdir('/')
         os.chdir(self.loading_preprocess)
-        names=os.listdir()
-        for name in names:
-            os.chdir('/')
-            os.chdir(self.loading_preprocess)
-            chk=np.load(name)
-            print(name," intiated")
-            chk=chk.reshape(chk.shape[0],chk.shape[1],chk.shape[2],1)
-            self.predicted=self.encoder_model.predict(chk,verbose=0)
-            
-            os.chdir('/')
-            os.chdir(self.load_spacing_directory)
-            self.space=pickle.load(open(''.join([name[0:25],'_spacing.p']),'rb'))
-            self.feature_extract_main(name)
-            print(name," sucessfull")
+#        self.names=os.listdir()
+#        for name in names:
+        name=self.name
+        gc.collect()
+        os.chdir('/')
+        os.chdir(self.loading_preprocess)
+        chk=np.load(name)
+        print(name," intiated")
+        chk=chk.reshape(chk.shape[0],chk.shape[1],chk.shape[2],1)
+        self.predicted=encoder_model.predict(chk,verbose=0,batch_size=1)
+        
+        os.chdir('/')
+        os.chdir(self.load_spacing_directory)
+        self.space=pickle.load(open(''.join([name[0:25],'_spacing.p']),'rb'))
+        self.feature_extract_main(name)
+        print(name," sucessfull")
+        gc.collect()
 
     def plot_important_feature(self,sel_image):
         
