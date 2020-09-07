@@ -22,7 +22,7 @@ class preprocess:
 
         self.sving_image_direct=sving_image_direct
 
-        self.saving_dir=''.join([saving_dir_main,'/Test_preprocess/Extract_rmd_check/'])
+        self.saving_dir=''.join([saving_dir_main,'/Test_preprocess/extract_rmd_check/'])
         os.chdir('/')
         if not os.path.isdir(self.saving_dir):
             os.makedirs(self.saving_dir)
