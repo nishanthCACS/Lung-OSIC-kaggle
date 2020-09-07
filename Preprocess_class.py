@@ -42,7 +42,7 @@ class preprocess:
             os.chdir('/')
             os.chdir(self.loading_preprocess)
             chk=np.load(name)
-    
+            print(name," intiated")
             chk=chk.reshape(chk.shape[0],chk.shape[1],chk.shape[2],1)
             self.predicted=encoder_model.predict(chk,verbose=0)
             
@@ -50,7 +50,8 @@ class preprocess:
             os.chdir(self.load_spacing_directory)
             self.space=pickle.load(open(''.join([name[0:25],'_spacing.p']),'rb'))
             self.feature_extract_main(name)
-            
+            print(name," sucessfull")
+
     def plot_important_feature(self,sel_image):
         
         os.chdir('/')
