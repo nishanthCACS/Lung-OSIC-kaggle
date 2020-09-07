@@ -31,10 +31,12 @@ class preprocess:
         '''
         Loading the models and extract the important features
         '''
+        print("model load intiated")
+
         os.chdir('/')
         os.chdir(self.loading_CNN_dir)
         encoder_model = load_model('Feature_extractor_conv_vin_1.h5')
-
+        print("Model load suceeded")
         os.chdir('/')
         os.chdir(self.loading_preprocess)
         names=os.listdir()
