@@ -23,17 +23,21 @@ class preprocess:
         self.sving_image_direct=sving_image_direct
 
         self.saving_dir=''.join([saving_dir_main,'/Test_preprocess/extract_rmd_check/'])
-        print("Preprocess intiated sucessll")
+        print("model load intiated")
+        os.chdir('/')
+        os.chdir(self.loading_CNN_dir)
+        self.encoder_model = load_model('Feature_extractor_conv_vin_1.h5')
+        print("Model load suceeded")
+                   
+        os.chdir('/')
+        os.chdir(self.loading_preprocess)
+        print("Preprocess intiated sucessll")       
+    
     def feature_extract_all(self):
         '''
         Loading the models and extract the important features
         '''
-        print("model load intiated")
 
-        os.chdir('/')
-        os.chdir(self.loading_CNN_dir)
-        encoder_model = load_model('Feature_extractor_conv_vin_1.h5')
-        print("Model load suceeded")
         os.chdir('/')
         os.chdir(self.loading_preprocess)
         names=os.listdir()
@@ -43,7 +47,7 @@ class preprocess:
             chk=np.load(name)
             print(name," intiated")
             chk=chk.reshape(chk.shape[0],chk.shape[1],chk.shape[2],1)
-            self.predicted=encoder_model.predict(chk,verbose=0)
+            self.predicted=self.encoder_model.predict(chk,verbose=0)
             
             os.chdir('/')
             os.chdir(self.load_spacing_directory)
