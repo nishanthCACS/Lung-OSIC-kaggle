@@ -29,7 +29,7 @@ class CT_lung_preprocess:
         self.master_main_output=master_main_output
                 #assigning input directories
         self.test_input_dir=''.join([master_main_input,'test/'])
-        self.models_dir=''.join([my_data_dir,'model/'])
+        self.models_dir=''.join([my_data_dir,'/model/'])
         
         #preperocessing directories
         #extracted CT_scan portion
