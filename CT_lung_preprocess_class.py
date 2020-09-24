@@ -24,52 +24,38 @@ class CT_lung_preprocess:
     '''
     Important preprocessing steps
     '''
-    def __init__(self,master_main_input,my_data_dir,master_main_output):
+    
+    def __init__(self,name,working_dir,saving_dir):
         
-        self.master_main_output=master_main_output
-                #assigning input directories
-        self.test_input_dir=''.join([master_main_input,'test/'])
-        self.models_dir=''.join([my_data_dir,'/model/'])
+        self.working_dir = working_dir
+        self.saving_dir = saving_dir
+        self.name = name #name of the class
         
-        #preperocessing directories
-        #extracted CT_scan portion
-        
-        self.mask_dir=''.join([master_main_output,'/Test_preprocess/masks/'])
-        self.spacing_dir=''.join([master_main_output,'/Test_preprocess/spacing/'])
-        self.preprocess_dir=''.join([master_main_output,'/Test_preprocess/rescal_final/'])
-   
-    def  preprocess_all(self):
-   
-        #creating saving/ output directories 
-        os.chdir('/')
-        if not os.path.isdir(self.mask_dir):
-            os.makedirs(self.mask_dir)
-        os.chdir('/')
-        if not os.path.isdir(self.spacing_dir):
-            os.makedirs(self.spacing_dir)
-        os.chdir('/')
-        if not os.path.isdir(self.preprocess_dir):
-            os.makedirs(self.preprocess_dir)
-        os.chdir('/')
-        os.chdir(self.test_input_dir)
-        names=os.listdir()
-        for name in names:   
-            print("Intiating CT extracting from ",name)
-            self.save_mask(name)
-            print("CT extracted from ",name," sucessfull ")
-            
-    def save_mask(self,name):
+    def save_mask(self,only_extracted_final_preprocess_save=True):
         '''
          Save the mask
         '''
-
-        scan_HU,thikness_record,PixelSpacing= self.load_scan(name)
-
-        Scan_rescaled, spacing = self.rescale(scan_HU, thikness_record,PixelSpacing)
-      
+        
+        # try: 
+        #     os.chdir('/')
+        #     os.chdir(self.saving_dir)         
+        #     Scan_rescaled = pickle.load(open(''.join([self.name,'_scan_rescaled.p']), "rb" ))
+            
+        # except:
+        # first load the files needed
         os.chdir('/')
-        os.chdir(self.spacing_dir)
-        pickle.dump(spacing, open(''.join([name,'_spacing.p']), "wb" ))
+        os.chdir(self.working_dir)
+        scan_HU,thikness_record,PixelSpacing= self.load_scan()
+        # thikness_records.append(thikness_record_t)
+        Scan_rescaled, spacing = self.rescale(scan_HU, thikness_record,PixelSpacing)
+        #check the scaling is that is rgular CT scan or CT scan in box
+        if Scan_rescaled.shape[1]>512 or  Scan_rescaled.shape[2]>512:
+            Scan_rescaled=self.needed_lung_scan_edition(Scan_rescaled)
+#        os.chdir('/')
+#        os.chdir(self.saving_dir)
+#        pickle.dump(Scan_rescaled, open(''.join([self.name,'_scan_rescaled.p']), "wb" ))
+#        pickle.dump(scan_HU, open(''.join([self.name,'_scan_HU.p']), "wb" ))
+#        pickle.dump(spacing, open(''.join([self.name,'_spacing.p']), "wb" ))
         
         change=False
         mask_images=[]
@@ -87,9 +73,11 @@ class CT_lung_preprocess:
                     applied[i,:,:]=0
                     change=True
                     Scan_rescaled= np.delete(Scan_rescaled,-1,0)
+#                    scan_HU = pickle.load(open(''.join([self.name,'_scan_HU.p']), "rb" ))
                     scan_HU= np.delete(scan_HU,-1,0)
+
             else:
-                applied_t,mask_temp=self.segment_lung_mask(Scan_rescaled[i], display=False)
+                applied_t,mask_temp=self.segment_lung_mask(Scan_rescaled[i],display=False)
                 applied[i,:,:]=applied_t 
                 mask_images.append(deepcopy(mask_temp))
         if change:
@@ -97,15 +85,41 @@ class CT_lung_preprocess:
             applied_new=np.empty((np.size(Scan_rescaled,axis=0),np.size(Scan_rescaled,axis=1),np.size(Scan_rescaled,axis=2)))
             for i in range(0,np.size(Scan_rescaled,axis=0)):
                 applied_new[i,:,:]=applied[i,:,:]
-            print(name,": Last z removed and Saved")
-            
-        os.chdir('/')
-        os.chdir(self.preprocess_dir)
-        np.save(''.join([name,'_rescaled_mask_applied.npy']),applied)
-        os.chdir('/')
-        os.chdir(self.mask_dir)
-        pickle.dump(mask_images, open(''.join([name,'_rescaled_mask.p']), "wb" ))
+            if not only_extracted_final_preprocess_save:
+                pickle.dump(Scan_rescaled, open(''.join([self.name,'_scan_rescaled.p']), "wb" ))
+                pickle.dump(scan_HU, open(''.join([self.name,'_scan_HU.p']), "wb" ))
+                np.save(''.join([self.name,'_rescaled_mask_applied.npy']),applied_new)
+                print(self.name,": Last z removed and Saved")
+                pickle.dump(mask_images, open(''.join([self.name,'_rescaled_mask.p']), "wb" ))
 
+        else:
+            if not only_extracted_final_preprocess_save:
+                os.chdir('/')
+                os.chdir(self.saving_dir)
+                pickle.dump(mask_images, open(''.join([self.name,'_rescaled_mask.p']), "wb" ))
+                np.save(''.join([self.name,'_rescaled_mask_applied.npy']),applied)
+                applied_new=applied
+                
+        self.extract_final_CNN_feature(applied_new,mask_images)
+        
+    def extract_final_CNN_feature(self,applied_new,mask_images,return_only=False):
+        '''
+        This function         
+        '''
+#        feat_ext_final=np.empty((np.size(applied_new,axis=0),np.size(applied_new,axis=1),np.size(applied_new,axis=2)))
+        feat_ext_final=np.empty((np.size(applied_new,axis=0),512,512))
+
+        for i in range(0,np.size(applied_new,axis=0)):
+            mask = mask_images[i]
+            image= applied_new[i]
+            feat_ext_final[i,:,:]=deepcopy(self.change_scales_back(image,mask))
+        if not return_only:
+            os.chdir('/')
+            os.chdir(self.saving_dir)
+            np.save(''.join([self.name,'_CNN_extracted.npy']),feat_ext_final)
+        else:
+            return feat_ext_final
+                
     def get_img(self,path_main):
     
         array=[]
@@ -131,8 +145,8 @@ class CT_lung_preprocess:
         # ArrayDicom = ArrayDicom.reshape(ConstPixelDims, order='F')
         # ArrayDicom = cv2.resize(ArrayDicom,(512,512))
         return image#,ConstPixelDims,ConstPixelSpacing
-           
-    def load_scan(self,name):
+            
+    def load_scan(self):
         """
         Loads scans from a folder and into a list.
         
@@ -140,14 +154,13 @@ class CT_lung_preprocess:
         Converts raw images to Hounsfield Units (HU).
         Returns: image (NumPy array)
         """
-        path=''.join([self.test_input_dir,name])
+        path=''.join([self.working_dir,self.name])
 
         try:
             slices = [pydicom.read_file(path + '/' + s) for s in os.listdir(path)]
             slices.sort(key = lambda x: int(x.InstanceNumber))
             image = np.stack([s.pixel_array for s in slices])
         except:
-            print("Vtk libarry intiated")
             image=self.get_img(path)
         try:
             slice_thickness= np.abs(slices[0].SliceThickness)
@@ -205,12 +218,47 @@ class CT_lung_preprocess:
         
         return image, new_spacing
     
-
+    def needed_lung_scan_edition(self,scan_rescaled,display=False):
+        '''
+        this fucntion crop the CT scan to the wanted portion
+        
+        '''
+        image=scan_rescaled[int(len(scan_rescaled)/2)]
+        if display:
+            plt.imshow(image)
+    
+        i=0
+        while np.abs(image[i][int(image.shape[1]/2)])<700:
+            i=i+1
+            break_i=i
+        j=0
+        while np.abs(image[int(image.shape[0]/2)][j])<700:
+            j=j+1
+            break_j=j
+            
+        i=0
+        while np.abs(image[i][int(image.shape[1]/2)])<700:
+            i=i-1
+            break_ot_i=i
+        j=0
+        while np.abs(image[int(image.shape[0]/2)][j])<700:
+            j=j-1
+            break_ot_j=j
+    
+        crop_img = image[break_i:break_ot_i, break_j:break_ot_j]
+        cropped_scan = np.empty((len(scan_rescaled),crop_img.shape[0],crop_img.shape[1]))
+    #    cropp_image_mask_applied,mask,dilation=segment_lung_mask(crop_img.astype(int))
+    #    crop_img = crop_img.astype(int)
+    #    plt.imshow(crop_img.astype(int))
+        for i in range(0,len(scan_rescaled)):
+            image=scan_rescaled[i]
+            crop_img = image[break_i:break_ot_i, break_j:break_ot_j]
+            cropped_scan[i]=deepcopy(crop_img)
+        return cropped_scan
     '''
     Preprocess for rescling done here
     Start masking
     '''
-    
     def segment_lung_mask(self,img,display=False):
         '''   
     
@@ -263,17 +311,17 @@ class CT_lung_preprocess:
             B = prop.bbox
             if B[2]-B[0]<row_size/10*9 and B[3]-B[1]<col_size/10*9 and B[0]>row_size/5 and B[2]<col_size/5*4:
                 good_labels.append(prop.label)
+                
         mask = np.ndarray([row_size,col_size],dtype=np.int8)
         mask[:] = 0
-    
-        #
         #  After just the lungs are left, we do another large dilation
         #  in order to fill in and out the lung mask 
-        #
         for N in good_labels:
             mask = mask + np.where(labels==N,1,0)
         mask = morphology.dilation(mask,np.ones([10,10])) # one last dilation
-    
+        if self.chk_mask_dialtion_worked(mask):
+           mask= self.get_mask_from_dilation(dilation,display=display)
+
         if (display):
             fig, ax = plt.subplots(3, 2, figsize=[12, 12])
             ax[0, 0].set_title("Original")
@@ -297,3 +345,115 @@ class CT_lung_preprocess:
             
             plt.show()
         return mask*orig_image,mask
+    
+    def get_mask_from_dilation(self,dilation,display=False):
+        '''
+        This function retrieve mask from dilation
+        '''
+        
+        dialation_copy=deepcopy(dilation)
+        for j in range(0,dilation.shape[1]):
+            i=0
+            while dilation[i][j]==1 and dilation.shape[0]-1>i:
+                dilation[i][j]=0
+                i=i+1
+        
+        for j in range(0,dilation.shape[1]):
+            i=-1
+            j=j*-1
+            while dialation_copy[i][j]==1 and -dilation.shape[0]+1<i:
+                dialation_copy[i][j]=0
+                i=i-1
+            if i>-2:
+                i=i-1
+                while dialation_copy[i][j]==1 and -dilation.shape[0]+1<i:
+                    dialation_copy[i][j]=0
+                    i=i-1
+            if i>-3:
+                i=i-1
+                while dialation_copy[i][j]==1 and -dilation.shape[0]+1<i:
+                    dialation_copy[i][j]=0
+                    i=i-1
+        if display:
+            plt.imshow(dilation*dialation_copy)
+        mask=dilation*dialation_copy
+        return mask
+    
+    def chk_mask_dialtion_worked(self,mask):
+        '''
+        This fuction will check the mask is created effectively
+        '''
+        if len(mask)>400:
+           mask_loaded= mask[250]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>250:
+           mask_loaded= mask[95]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>200:
+           mask_loaded= mask[85]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>150:
+           mask_loaded= mask[75]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>100:
+           mask_loaded= mask[55]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>50:
+           mask_loaded= mask[25]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        elif len(mask)>35:
+           mask_loaded= mask[15]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        else:
+           mask_loaded= mask[10]
+           if np.sum(mask_loaded)>10000:
+               mask_recheck=False
+           else:
+               mask_recheck=True
+        return mask_recheck
+    
+    def change_scales_back(self,image,mask,air_HU_thresh=-1250,bone_HU_thresh=500):
+        '''
+        Remove the reducndancy thrugh rescaling the HU 
+        This will finalised the scan image set for CNN model
+        '''
+        for i in range(0,image.shape[0]):
+            for j in range(0,image.shape[1]):
+                if image[i,j]<air_HU_thresh:
+                    image[i,j]=air_HU_thresh
+                elif image[i,j]>bone_HU_thresh:
+                    image[i,j]=bone_HU_thresh
+        
+        mask_sel=deepcopy(mask)
+        mask_one=np.ones((mask_sel.shape[0],mask_sel.shape[1]))
+        mask_change_back=(mask_one-mask_sel)*500
+        image=image+mask_change_back
+        image=(image+1250)/1750
+        
+        #fixing the image size to 512 x512
+        image_fixed=np.ones((512,512))
+        image_fixed[256-int(image.shape[0]/2):256-int(image.shape[0]/2)+image.shape[0],256-int(image.shape[1]/2):256-int(image.shape[1]/2)+image.shape[1]] = image
+        image_final=np.ones((512,512))
+        image_final=image_final-image_fixed#to make the air near to one and treat outside of the Lung as bone
+        return image_final
