@@ -44,7 +44,7 @@ class CT_lung_preprocess:
         # except:
         # first load the files needed
         os.chdir('/')
-        os.chdir(self.working_dir)
+#        os.chdir(self.working_dir)
         scan_HU,thikness_record,PixelSpacing= self.load_scan()
         # thikness_records.append(thikness_record_t)
         Scan_rescaled, spacing = self.rescale(scan_HU, thikness_record,PixelSpacing)
@@ -161,6 +161,7 @@ class CT_lung_preprocess:
             slices.sort(key = lambda x: int(x.InstanceNumber))
             image = np.stack([s.pixel_array for s in slices])
         except:
+            os.chdir('/')
             image=self.get_img(path)
         try:
             slice_thickness= np.abs(slices[0].SliceThickness)
